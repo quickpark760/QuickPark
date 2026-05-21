@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuickPark – Găsește Parcare</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #4a90b8;
+    --blue-dark: #2c3e6b;
+    --teal: #2ab5a0;
+    --bg: #0d1117;
+    --surface: #161b25;
+    --card: #1e2535;
+    --border: #2a3347;
+    --text: #e8edf5;
+    --muted: #7a8ba5;
+    --green: #2ecc71;
+    --orange: #e67e22;
+    --red: #e74c3c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 20px 24px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 4px 16px rgba(74,144,184,0.3);
+    flex-shrink: 0;
+  }
+  .logo-text h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-text span { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--teal); letter-spacing: 2px; }
+
+  .radius-bar {
+    margin: 16px 20px 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .radius-bar label { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+  .radius-bar input[type=range] { flex: 1; accent-color: var(--blue); }
+  .radius-val { font-family: 'Space Mono', monospace; font-size: 0.78rem; color: var(--teal); font-weight: 700; white-space: nowrap; min-width: 52px; text-align: right; }
+
+  .location-bar {
+    margin: 12px 20px 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 16px 18px; display: flex; align-items: center; gap: 12px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .location-bar:hover { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(74,144,184,0.1); }
+  .loc-dot {
+    width: 10px; height: 10px; background: var(--teal); border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(42,181,160,0.2); animation: pulse 2s infinite; flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 4px rgba(42,181,160,0.2); }
+    50% { box-shadow: 0 0 0 8px rgba(42,181,160,0.05); }
+  }
+  .loc-text { flex: 1; }
+  .loc-text .loc-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; font-family: 'Space Mono', monospace; }
+  .loc-text .loc-name { font-size: 0.95rem; font-weight: 700; margin-top: 2px; }
+  .loc-btn {
+    background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+    border: none; color: #fff; border-radius: 10px; padding: 8px 14px;
+    font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700;
+    cursor: pointer; transition: opacity 0.2s, transform 0.1s; white-space: nowrap;
+  }
+  .loc-btn:hover { opacity: 0.85; transform: scale(0.98); }
+  .loc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .filters {
+    display: flex; gap: 8px; padding: 16px 20px 0;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .filter-btn {
+    padding: 7px 16px; border-radius: 999px;
+    font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 700;
+    border: 1.5px solid var(--border); background: transparent; color: var(--muted);
+    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .filter-btn.active { color: #fff; background: var(--blue); border-color: var(--blue); }
+  .filter-btn:hover:not(.active) { border-color: var(--blue); color: var(--blue); background: rgba(74,144,184,0.1); }
+
+  .section-label {
+    padding: 20px 20px 10px;
+    font-family: 'Space Mono', monospace; font-size: 0.7rem;
+    color: var(--muted); letter-spacing: 2px; text-transform: uppercase;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .section-label span { color: var(--teal); }
+
+  /* MAP */
+  .map-area {
+    margin: 0 20px; border-radius: 18px; overflow: hidden;
+    height: 200px; border: 1px solid var(--border); position: relative;
+  }
+  #osmap { width: 100%; height: 100%; }
+
+  .cards { padding: 0 20px 100px; display: flex; flex-direction: column; gap: 14px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 18px; transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    cursor: pointer; position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 4px; height: 100%; border-radius: 18px 0 0 18px;
+  }
+  .card.avail::before { background: var(--green); }
+  .card.limited::before { background: var(--orange); }
+  .card.unknown::before { background: var(--blue); }
+  .card:hover { border-color: var(--blue); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .card-name { font-size: 1rem; font-weight: 800; }
+  .card-dist { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+  .osm-badge {
+    background: rgba(42,181,160,0.15); border: 1px solid var(--teal);
+    border-radius: 6px; padding: 3px 8px;
+    font-family: 'Space Mono', monospace; font-size: 0.62rem; color: var(--teal);
+    margin-top: 4px; display: inline-block;
+  }
+
+  .price-badge {
+    background: linear-gradient(135deg, var(--blue-dark), var(--blue));
+    border-radius: 10px; padding: 6px 12px; text-align: center; flex-shrink: 0;
+  }
+  .price-badge .amount { font-family: 'Space Mono', monospace; font-size: 1rem; font-weight: 700; color: #fff; display: block; }
+  .price-badge .per { font-size: 0.6rem; color: rgba(255,255,255,0.6); letter-spacing: 1px; }
+
+  .card-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .meta-tag {
+    font-size: 0.73rem; color: var(--muted);
+    background: var(--surface); padding: 4px 10px;
+    border-radius: 999px; border: 1px solid var(--border);
+  }
+
+  .nav-btn {
+    margin-top: 14px; width: 100%; padding: 10px;
+    background: transparent; border: 1.5px solid var(--border);
+    border-radius: 10px; color: var(--teal);
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--teal); background: rgba(42,181,160,0.08); }
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; padding: 12px 0 20px;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-size: 0.65rem; font-weight: 700; color: var(--muted); cursor: pointer;
+    letter-spacing: 0.5px; transition: color 0.2s; font-family: 'Space Mono', monospace;
+  }
+  .nav-item .nav-icon { font-size: 1.3rem; }
+  .nav-item.active { color: var(--blue); }
+
+  .loading-overlay {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 999; gap: 20px; transition: opacity 0.4s;
+  }
+  .loading-overlay.hide { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 56px; height: 56px;
+    border: 3px solid var(--border); border-top-color: var(--blue);
+    border-radius: 50%; animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: 'Space Mono', monospace; font-size: 0.78rem; color: var(--muted); letter-spacing: 2px; text-align: center; }
+
+  .toast {
+    position: fixed; bottom: 90px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--teal); color: #fff; font-weight: 700; font-size: 0.85rem;
+    padding: 10px 22px; border-radius: 999px; opacity: 0;
+    transition: all 0.3s; pointer-events: none; white-space: nowrap; z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .error-box {
+    margin: 0 20px; background: rgba(231,76,60,0.1); border: 1px solid var(--red);
+    border-radius: 14px; padding: 16px; text-align: center;
+    font-size: 0.85rem; color: var(--red); display: none;
+  }
+  .error-box.show { display: block; }
+
+  /* Leaflet overrides */
+  .leaflet-container { background: var(--card) !important; border-radius: 18px; }
+</style>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="logo-icon" style="width:60px;height:60px;font-size:30px;border-radius:18px;">🚗</div>
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">SE DETECTEAZĂ LOCAȚIA...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<header>
+  <div class="logo-icon">🚗</div>
+  <div class="logo-text">
+    <h1>QuickPark</h1>
+    <span>PARCARE RAPIDĂ · OSM</span>
+  </div>
+</header>
+
+<!-- RADIUS SLIDER -->
+<div class="radius-bar">
+  <label>RAZĂ CĂUTARE</label>
+  <input type="range" id="radiusSlider" min="200" max="2000" step="100" value="500" oninput="updateRadius(this.value)">
+  <div class="radius-val" id="radiusVal">500m</div>
+</div>
+
+<!-- LOCATION -->
+<div class="location-bar">
+  <div class="loc-dot"></div>
+  <div class="loc-text">
+    <div class="loc-label">Locația ta curentă</div>
+    <div class="loc-name" id="locName">Se detectează...</div>
+  </div>
+  <button class="loc-btn" id="refreshBtn" onclick="startSearch()">📍 Caută</button>
+</div>
+
+<!-- ERROR -->
+<div class="error-box" id="errorBox">⚠️ Nu s-a putut accesa locația. Verifică permisiunile GPS.</div>
+
+<!-- FILTERS -->
+<div class="filters">
+  <button class="filter-btn active" onclick="filterCards('all', this)">Toate</button>
+  <button class="filter-btn" onclick="filterCards('avail', this)">✅ Disponibile</button>
+  <button class="filter-btn" onclick="filterCards('underground', this)">🏢 Subteran</button>
+  <button class="filter-btn" onclick="filterCards('surface', this)">🌤️ Suprafață</button>
+  <button class="filter-btn" onclick="filterCards('free', this)">💰 Gratuit</button>
+</div>
+
+<!-- MAP -->
+<div class="section-label">
+  <span>HARTĂ LIVE · OpenStreetMap</span>
+  <span id="countLabel">—</span>
+</div>
+<div class="map-area">
+  <div id="osmap"></div>
+</div>
+
+<!-- CARDS -->
+<div class="section-label"><span>PARCĂRI GĂSITE</span></div>
+<div class="cards" id="cards"></div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-item active"><div class="nav-icon">🅿️</div>PARCĂRI</div>
+  <div class="nav-item"><div class="nav-icon">🗺️</div>HARTĂ</div>
+  <div class="nav-item"><div class="nav-icon">❤️</div>SALVATE</div>
+  <div class="nav-item"><div class="nav-icon">👤</div>PROFIL</div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+let userLat = null, userLng = null;
+let allParkings = [];
+let map = null;
+let userMarker = null;
+let parkMarkers = [];
+let searchRadius = 500;
+
+// Init map
+function initMap(lat, lng) {
+  if (!map) {
+    map = L.map('osmap', { zoomControl: true, attributionControl: false });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19
+    }).addTo(map);
+  }
+  map.setView([lat, lng], 15);
+
+  if (userMarker) userMarker.remove();
+  const userIcon = L.divIcon({
+    html: `<div style="width:16px;height:16px;background:#2ab5a0;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 6px rgba(42,181,160,0.25);"></div>`,
+    className: '', iconAnchor: [8, 8]
+  });
+  userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map).bindPopup('📍 Tu ești aici');
+}
+
+function addParkMarkers(parkings) {
+  parkMarkers.forEach(m => m.remove());
+  parkMarkers = [];
+  parkings.forEach(p => {
+    const color = p.fee === 'no' ? '#2ecc71' : '#4a90b8';
+    const icon = L.divIcon({
+      html: `<div style="background:${color};color:#fff;font-size:11px;font-weight:700;padding:4px 7px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);font-family:Space Mono,monospace;">🅿️</div>`,
+      className: '', iconAnchor: [14, 14]
+    });
+    const m = L.marker([p.lat, p.lng], { icon })
+      .addTo(map)
+      .bindPopup(`<b>${p.name}</b><br>${p.distText}<br>${p.fee === 'no' ? '🟢 Gratuit' : p.fee === 'yes' ? '💳 Cu plată' : 'ℹ️ Tarif necunoscut'}`);
+    parkMarkers.push(m);
+  });
+}
+
+// Distance helper
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function walkTime(m) {
+  const mins = Math.round(m / 80);
+  return mins <= 1 ? '1 min mers' : `${mins} min mers`;
+}
+
+// Overpass API query
+async function fetchParkings(lat, lng, radius) {
+  setLoadingText('SE CAUTĂ PARCĂRI...');
+
+  // Query for parking nodes, ways, and relations
+  const query = `
+    [out:json][timeout:25];
+    (
+      node["amenity"="parking"](around:${radius},${lat},${lng});
+      way["amenity"="parking"](around:${radius},${lat},${lng});
+      relation["amenity"="parking"](around:${radius},${lat},${lng});
+    );
+    out center tags;
+  `;
+
+  const res = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    body: 'data=' + encodeURIComponent(query),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  });
+
+  if (!res.ok) throw new Error('Overpass API error');
+  const data = await res.json();
+  return data.elements;
+}
+
+function parseElements(elements, userLat, userLng) {
+  return elements.map(el => {
+    const tags = el.tags || {};
+    // Get coordinates — nodes have lat/lon, ways/relations have center
+    const lat = el.lat ?? el.center?.lat;
+    const lng = el.lon ?? el.center?.lon;
+    if (!lat || !lng) return null;
+
+    const dist = haversine(userLat, userLng, lat, lng);
+    const name = tags.name || tags['name:ro'] || tags['operator'] || `Parcare ${el.id}`;
+    const fee = tags.fee || 'unknown';
+    const parking = tags.parking || 'unknown';
+    const access = tags.access || 'yes';
+    const capacity = tags.capacity ? parseInt(tags.capacity) : null;
+    const surface = tags.surface || null;
+
+    // Build features list
+    const features = [];
+    if (parking === 'underground' || parking === 'multi-storey') features.push('🏢 Acoperit');
+    else if (parking === 'surface') features.push('🌤️ Suprafață');
+    if (fee === 'no') features.push('💰 Gratuit');
+    else if (fee === 'yes') features.push('💳 Cu plată');
+    if (tags.wheelchair === 'yes') features.push('♿ Handicap');
+    if (tags['maxstay']) features.push(`⏱️ Max ${tags['maxstay']}`);
+    if (tags['opening_hours']) features.push(`🕐 ${tags['opening_hours']}`);
+    if (tags['electric_vehicle'] === 'yes' || tags['amenity'] === 'charging_station') features.push('⚡ EV');
+    if (access === 'private') features.push('🔒 Privat');
+    if (surface) features.push(`🛣️ ${surface}`);
+
+    return {
+      id: el.id, lat, lng, name, dist,
+      distText: `${Math.round(dist)}m · ${walkTime(dist)}`,
+      fee, parking, capacity, features,
+      type: fee === 'no' ? 'avail' : parking === 'underground' || parking === 'multi-storey' ? 'limited' : 'avail'
+    };
+  }).filter(Boolean).sort((a, b) => a.dist - b.dist);
+}
+
+function renderCards(data) {
+  const container = document.getElementById('cards');
+  container.innerHTML = '';
+  document.getElementById('countLabel').textContent = `${data.length} găsite`;
+
+  if (data.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--muted);font-family:'Space Mono',monospace;font-size:0.8rem;">Nicio parcare găsită în raza selectată.<br><br>Mărește raza de căutare.</div>`;
+    return;
+  }
+
+  data.forEach(p => {
+    const card = document.createElement('div');
+    const cardType = p.fee === 'no' ? 'avail' : p.parking === 'underground' ? 'limited' : 'unknown';
+    card.className = `card ${cardType}`;
+
+    const feeLabel = p.fee === 'no' ? '<span style="color:var(--green);font-weight:700;">GRATUIT</span>' :
+                     p.fee === 'yes' ? '<span style="color:var(--muted);">CU PLATĂ</span>' :
+                     '<span style="color:var(--muted);">TARIF ?</span>';
+
+    const capText = p.capacity ? `${p.capacity} locuri` : 'Capacitate ?';
+
+    card.innerHTML = `
+      <div class="card-top">
+        <div style="flex:1;min-width:0;">
+          <div class="card-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</div>
+          <div class="card-dist">📍 ${p.distText}</div>
+          <div class="osm-badge">OSM #${p.id}</div>
+        </div>
+        <div class="price-badge" style="margin-left:10px;">
+          <span class="amount" style="font-size:0.8rem;">${feeLabel}</span>
+          <span class="per">${capText}</span>
+        </div>
+      </div>
+      ${p.features.length ? `<div class="card-meta">${p.features.slice(0,5).map(f=>`<div class="meta-tag">${f}</div>`).join('')}</div>` : ''}
+      <button class="nav-btn" onclick="navigate(${p.lat}, ${p.lng}, '${p.name.replace(/'/g,"\\'")}')">🗺️ Navighează · ${p.distText}</button>
+    `;
+    container.appendChild(card);
+  });
+}
+
+let currentFilter = 'all';
+function filterCards(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = type;
+  applyFilter();
+}
+
+function applyFilter() {
+  let filtered = allParkings;
+  if (currentFilter === 'avail') filtered = allParkings.filter(p => p.fee !== 'yes');
+  else if (currentFilter === 'underground') filtered = allParkings.filter(p => p.parking === 'underground' || p.parking === 'multi-storey');
+  else if (currentFilter === 'surface') filtered = allParkings.filter(p => p.parking === 'surface');
+  else if (currentFilter === 'free') filtered = allParkings.filter(p => p.fee === 'no');
+  renderCards(filtered);
+  addParkMarkers(filtered);
+}
+
+function navigate(lat, lng, name) {
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+  window.open(url, '_blank');
+  showToast(`🗺️ Navigare spre ${name}`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function setLoadingText(t) { document.getElementById('loadingText').textContent = t; }
+
+function updateRadius(val) {
+  searchRadius = parseInt(val);
+  document.getElementById('radiusVal').textContent = val >= 1000 ? `${val/1000}km` : `${val}m`;
+}
+
+async function reverseGeocode(lat, lng) {
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ro`);
+    const d = await r.json();
+    const a = d.address;
+    return a.road
+      ? `${a.road}${a.house_number ? ' ' + a.house_number : ''}, ${a.city || a.town || a.village || ''}`
+      : d.display_name.split(',').slice(0,2).join(',');
+  } catch { return `${lat.toFixed(4)}, ${lng.toFixed(4)}`; }
+}
+
+async function startSearch() {
+  const btn = document.getElementById('refreshBtn');
+  const errorBox = document.getElementById('errorBox');
+  btn.disabled = true;
+  errorBox.classList.remove('show');
+
+  document.getElementById('loading').classList.remove('hide');
+  setLoadingText('SE DETECTEAZĂ LOCAȚIA...');
+
+  if (!navigator.geolocation) {
+    errorBox.classList.add('show');
+    document.getElementById('loading').classList.add('hide');
+    btn.disabled = false;
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(async pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+
+    setLoadingText('SE ÎNCARCĂ HARTA...');
+    initMap(userLat, userLng);
+
+    const locName = await reverseGeocode(userLat, userLng);
+    document.getElementById('locName').textContent = locName;
+
+    setLoadingText('SE CAUTĂ PARCĂRI REALE...');
+    try {
+      const elements = await fetchParkings(userLat, userLng, searchRadius);
+      allParkings = parseElements(elements, userLat, userLng);
+      applyFilter();
+      showToast(`✅ ${allParkings.length} parcări găsite!`);
+    } catch (e) {
+      console.error(e);
+      showToast('⚠️ Eroare la Overpass API. Reîncearcă.');
+    }
+
+    document.getElementById('loading').classList.add('hide');
+    btn.disabled = false;
+  }, err => {
+    errorBox.classList.add('show');
+    document.getElementById('locName').textContent = 'Locație indisponibilă';
+    document.getElementById('loading').classList.add('hide');
+    btn.disabled = false;
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+window.addEventListener('load', () => {
+  // Init map with Romania center as placeholder
+  map = L.map('osmap', { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+  map.setView([45.75, 21.23], 13);
+
+  startSearch();
+});
+</script>
+</body>
+</html>
